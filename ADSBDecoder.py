@@ -8,7 +8,6 @@ import time
 import decoder
 import PreambleDetection
 import CRC
-#import Visualization
 
 import matplotlib.pyplot as plt
 
@@ -25,25 +24,8 @@ def decodeMessage(m,messageStart):
 		else:
 			bitString+='0'
 	return(bitString,confidenceArray)
-
-def correctADSBMessages(msg,messageList,Time):
-	if msg[0:2] == '8D':
-		'''
-		isvalid = CRC.computeChecksum(msg)
-		rawmsg = msg
 		
-		if isvalid==False:
-			isvalid,msg = CRC.correctBitError(rawmsg)
-		
-		if isvalid==False:
-			isvalid,msg = CRC.correct2BitError(rawmsg)
-		
-		if isvalid==True:
-		'''
-		messageList.append((Time,msg))
-		
-def grabData(fileName,LNAGain=14,IFGain=10,MIXGain=10):
-	sampleType = 2
+def grabData(fileName,numSeconds,LNAGain=14,IFGain=10,MIXGain=10):
 	targetFreq = 1092.5
 	numSamples = int(numSeconds*Fs)
 	os.system('airspy_rx -r '+fileName+' -t '+str(sampleType)+' -f '+str(targetFreq-Fs/(4.0*10**6))+' -l '+str(LNAGain)+' -v '+str(IFGain)+' -m '+str(MIXGain)+'  -n '+str(numSamples))
@@ -55,7 +37,8 @@ def findPossibleMessages():
 	Input = Input[10**4:]
 
 	messageList=[]
-	for segment in range(0,5*numSeconds):
+	for segment in range(0,numSeconds/segmentLength):
+		print(segment)
 		InputSegment=Input[2*segmentLength*Fs*segment:2*segmentLength*Fs*(segment+1)]
 		
 		#Strip out the I and Q
@@ -69,19 +52,20 @@ def findPossibleMessages():
 			Time = (acquisitionTime-startTime)+(segment*segmentLength)+messageStart/Fs
 			bitString,confidenceArray = decodeMessage(m,messageStart)
 			hexString = CRC.bin2hex(bitString)
-			correctADSBMessages(hexString,messageList,Time)
+			if hexString[0:2] == '8D':
+				messageList.append((Time,hexString))
 	return(messageList)
 
 Fs = 10.0*10**6      # sample rate, Hz
-numSeconds = 2
+numSeconds = 10
 threshold = 1000
 startTime = time.time()
 
 f = open('Syd.txt','w')
-for i in range(0,20*60*10):
+for i in range(0,1):
 	
 	acquisitionTime = time.time()
-	grabData('data.bin',LNAGain=14,IFGain=10,MIXGain=10)
+	#grabData('data.bin',numSeconds,LNAGain=14,IFGain=10,MIXGain=10)
 	messageList = findPossibleMessages()
 	print('Num Messages',len(messageList))
 	for Time,message in messageList:
